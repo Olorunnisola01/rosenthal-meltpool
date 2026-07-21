@@ -27,34 +27,6 @@ ABSORPTIVITY_RANGE = (0.1, 0.9)
 T0_RANGE = (300, 800)
 
 
-@st.cache_data
-def _baseline_window(material_name: str) -> dict[str, float]:
-    """A generously-sized, fixed reference melt pool for this material.
-
-    Using the literal slider extremes (max power + min velocity + max
-    absorptivity + max preheat, all at once) would size the window off an
-    unrealistic worst-case corner -- for a highly conductive material like
-    AlSi10Mg that corner is nearly 3 mm wide, which would make every
-    ordinary/default-range result look like a tiny dot. Instead this uses a
-    generous-but-plausible single operating point as the baseline scale, and
-    the caller expands past it only if the current slider position actually
-    produces a bigger pool than that (see `_plot_window` below) -- so the
-    view is fixed for the vast majority of slider positions, and only grows
-    on genuinely extreme combinations rather than shrinking on ordinary ones.
-    """
-    material = get_material(material_name)
-    generous = ProcessParameters(power=320.0, velocity=0.3, absorptivity=0.6, t0=400.0)
-    return melt_pool_dimensions(generous, material)
-
-
-def _plot_window(material_name: str, current_dims: dict[str, float]) -> dict[str, float]:
-    """Fixed axis-limit basis: the baseline, expanded only if `current_dims`
-    is actually larger (so the frame never clips the pool, but stays at a
-    constant, generously-sized scale for the normal range of inputs).
-    """
-    baseline = _baseline_window(material_name)
-    return {key: max(baseline[key], current_dims[key] * 1.3) for key in baseline}
-
 st.title("Rosenthal Melt-Pool Calculator")
 st.caption(
     "Analytical (conduction-mode) prediction of single-track melt-pool geometry "
@@ -121,16 +93,15 @@ delta = material.t_melt - t0
 vmax_display = t0 + 2.2 * delta
 levels = np.linspace(t0, vmax_display, 60)
 
-# Fixed axis limits for this material: a generous baseline that only expands
-# if the current slider position actually produces a bigger pool than that
-# baseline. In practice this means the zoom level stays constant across the
-# normal range of slider adjustments, and only grows for genuinely extreme
-# parameter combinations (never shrinks for small/typical ones).
-window = _plot_window(material_name, dims)
-half_w_fixed = window["width"] / 2 * 1.5
-x_back_fixed = window["length_back"] * 0.35  # trailing tail is exaggerated (see caveat); crop it
-x_front_fixed = window["length_front"] * 1.5
-depth_fixed = window["depth"] * 1.5
+# Axis limits (the "zoom") are recomputed from the current result every time,
+# so the melt pool always fills the frame nicely at whatever size it actually
+# is. What stays fixed is the figure's *rendered* size below (figsize=(6.5,
+# 6.5), same physical plot area every time) -- only the numbers on the axes
+# change, not the size of the plot itself.
+half_w_fixed = dims["width"] / 2 * 1.6
+x_back_fixed = dims["length_back"] * 0.35  # trailing tail is exaggerated (see caveat); crop it
+x_front_fixed = dims["length_front"] * 1.8
+depth_fixed = dims["depth"] * 1.8
 
 
 def _field(coords_a, coords_b, plane: str) -> np.ndarray:
@@ -183,11 +154,10 @@ cb.set_label(f"Temperature (K) — capped at display for contrast; cyan line = T
 st.pyplot(fig_cb, use_container_width=True)
 
 st.caption(
-    "Axis limits are fixed for this material (sized from its largest possible melt "
-    "pool across the full slider range), so the view stays at a constant scale as "
-    "you adjust parameters — only switching material changes the zoom level. "
-    "Plan-view trailing tail is cropped for display; the true isotherm runs far "
-    "longer behind the source, per the length caveat above."
+    "The zoom level adapts to each result so the pool always fills the frame "
+    "clearly; the plot's rendered size stays the same regardless. Plan-view "
+    "trailing tail is cropped for display — the true isotherm runs far longer "
+    "behind the source, per the length caveat above."
 )
 
 st.markdown("#### What these results mean")
