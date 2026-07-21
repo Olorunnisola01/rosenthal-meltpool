@@ -120,6 +120,20 @@ def melt_pool_dimensions(params: ProcessParameters, material: Material, search_m
     pool is widest/deepest. Length is the sum of the leading (ahead of the source,
     x>0) and trailing (behind the source, x<0) extents along the scan line.
 
+    Structural limitation -- depth/width is always exactly 0.5: at x=0, both
+    the half-width equation (solved along y) and the depth equation (solved
+    along z) reduce to the identical function of a single radial distance,
+    since R = sqrt(y^2 + z^2) at x=0 treats y and z interchangeably. This
+    means half_width == depth for *any* power, velocity, absorptivity, or
+    material -- the cross-section is a perfect semicircle by construction.
+    This is an exact, provable property of the canonical point-source-at-
+    surface Rosenthal formula, not an approximation or numerical artifact.
+    Real melt pools are not semicircular (conduction-mode pools are wider
+    than deep; keyhole-mode pools are deeper than wide) -- this model cannot
+    represent that variation at all. Reproducing a non-0.5 aspect ratio
+    requires a different heat-source model (e.g. Goldak's double-ellipsoidal
+    source), not a parameter change to this one.
+
     Caveat on `length` / `length_back`: exactly on the trailing centerline
     (y=0, z=0, x<0), R = -x, so R+x = 0 for every point on that line -- the
     exponential decay term is identically 1 there, and temperature falls off only

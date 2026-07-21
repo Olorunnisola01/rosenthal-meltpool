@@ -172,11 +172,15 @@ st.markdown(
   layer remelts into the one below it — this is what gives good interlayer
   bonding. If depth is only marginally larger than layer thickness, expect
   interlayer porosity.
-- **Depth-to-width ratio** ({dims['depth'] / dims['width']:.2f}) is a rough
-  indicator of processing regime: ratios well below ~0.5 suggest conduction mode
-  (which this model assumes); ratios approaching or exceeding ~1 often signal
-  keyhole mode in practice, where this model's predictions become unreliable
-  (see limitations below).
+- **Depth-to-width ratio is always exactly 0.5** — this is a mathematical
+  identity of this model (see GitHub README), not a measurement: at the
+  source's cross-section, the width and depth equations are literally the
+  same equation, so the predicted pool is always a perfect semicircle. Real
+  melt pools are not semicircular — conduction-mode pools run shallower than
+  0.5, keyhole-mode pools run deeper — so this ratio cannot be used as a
+  regime indicator here. Validating against [Zhang et al. (2024)](https://doi.org/10.3390/mi15020170)
+  single-track 316L data shows measured ratios from 0.49 to 1.58 depending on
+  parameters, none of which this model can reproduce by construction.
 - **Length** is dominated by this model's known trailing-centerline artifact
   (see the caveat above) — it is not a reliable absolute number, so it isn't
   used for any of the interpretations above. It is included only for relative
@@ -196,7 +200,9 @@ st.markdown(
     uncertainty; if predictions don't match an experimental single-track
     measurement, adjust absorptivity first.
 
-    Source code: [GitHub](https://github.com/) · Reference: D. Rosenthal,
-    *Trans. ASME*, 68, 849-866 (1946).
+    Source code: [GitHub](https://github.com/Olorunnisola01/rosenthal-meltpool) ·
+    Reference: D. Rosenthal, *Trans. ASME*, 68, 849-866 (1946). Validated
+    against [Zhang et al. (2024)](https://doi.org/10.3390/mi15020170)
+    single-track 316L data — see the repo README for full results.
     """
 )

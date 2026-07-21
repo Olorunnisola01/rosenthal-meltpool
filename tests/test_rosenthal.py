@@ -59,3 +59,21 @@ def test_unknown_material_raises():
 def test_alpha_matches_definition():
     material = get_material("316L")
     assert material.alpha == pytest.approx(material.k / (material.rho * material.cp))
+
+
+@pytest.mark.parametrize("name", list(MATERIALS))
+def test_depth_to_width_ratio_is_always_exactly_half(name):
+    # Structural property of this formula (see melt_pool_dimensions docstring):
+    # at x=0, R=sqrt(y^2+z^2) treats width and depth identically, so
+    # depth == half_width for any parameters. This is not an approximation --
+    # if this test ever fails, the model's core assumption has changed and
+    # every downstream limitations doc (README, Streamlit app) needs revising.
+    material = get_material(name)
+    for power, velocity, absorptivity, t0 in [
+        (100.0, 0.3, 0.3, 300.0),
+        (400.0, 2.0, 0.9, 800.0),
+        (250.0, 0.8, 0.5, 500.0),
+    ]:
+        params = ProcessParameters(power=power, velocity=velocity, absorptivity=absorptivity, t0=t0)
+        dims = melt_pool_dimensions(params, material)
+        assert dims["depth"] / dims["width"] == pytest.approx(0.5, rel=1e-6)
