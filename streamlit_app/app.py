@@ -60,24 +60,86 @@ st.caption(
     "reliable numbers; use length for relative comparisons only."
 )
 
-st.markdown("### Melt-pool cross-section (through the source, x = 0)")
+st.markdown("### Melt-pool geometry")
 
-half_extent = max(dims["width"], dims["depth"]) * 1.5
-n = 150
-y = np.linspace(-half_extent, half_extent, n)
-z = np.linspace(0, half_extent * 1.2, n)
-Y, Z = np.meshgrid(y, z)
-T = np.vectorize(lambda yy, zz: temperature(0.0, yy, zz, params, material) if (yy, zz) != (0.0, 0.0) else np.nan)(Y, Z)
+plt.rcParams.update(
+    {
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.titleweight": "bold",
+    }
+)
 
-fig, ax = plt.subplots(figsize=(5, 4))
-contour = ax.contourf(Y * 1e6, Z * 1e6, T, levels=40, cmap="inferno")
-ax.contour(Y * 1e6, Z * 1e6, T, levels=[material.t_melt], colors="cyan", linewidths=2)
-ax.invert_yaxis()
-ax.set_xlabel("y (µm)")
-ax.set_ylabel("depth z (µm)")
-ax.set_title("Temperature field (cyan = melt-pool boundary)")
-fig.colorbar(contour, ax=ax, label="Temperature (K)")
-st.pyplot(fig)
+# The point-source singularity at R=0 makes raw temperature blow up to huge
+# values right next to the source, which would crush the color scale near the
+# melt pool into a single dark blob. Capping the display range at a modest
+# multiple of the melt/ambient delta keeps contrast concentrated where it
+# matters: in and around the melt-pool boundary.
+delta = material.t_melt - t0
+vmax_display = t0 + 2.2 * delta
+levels = np.linspace(t0, vmax_display, 60)
+
+
+def _field(coords_a, coords_b, plane: str) -> np.ndarray:
+    """Evaluate temperature over a 2D grid, clipped for display."""
+    A, B = np.meshgrid(coords_a, coords_b)
+    if plane == "yz":  # cross-section through the source, x=0
+        fn = lambda a, b: temperature(0.0, a, b, params, material)
+    else:  # "xy", plan view at the surface, z=0
+        fn = lambda a, b: temperature(a, b, 0.0, params, material)
+    T = np.vectorize(lambda a, b: fn(a, b) if (a, b) != (0.0, 0.0) else np.nan)(A, B)
+    return np.clip(T, t0, vmax_display)
+
+
+col_plan, col_section = st.columns(2)
+
+with col_plan:
+    half_w = dims["width"] / 2 * 1.6
+    x_back = dims["length_back"] * 0.35  # trailing tail is exaggerated (see caveat); crop it
+    x_front = dims["length_front"] * 1.8
+    x = np.linspace(-x_back, x_front, 180)
+    y = np.linspace(-half_w, half_w, 180)
+    T_plan = _field(x, y, "xy")
+
+    fig1, ax1 = plt.subplots(figsize=(4.2, 4.2))
+    cf1 = ax1.contourf(x * 1e6, y * 1e6, T_plan.T, levels=levels, cmap="inferno", extend="max")
+    ax1.contour(x * 1e6, y * 1e6, T_plan.T, levels=[material.t_melt], colors="#00e5ff", linewidths=2)
+    ax1.plot(0, 0, marker="*", color="white", markersize=10, markeredgecolor="black", markeredgewidth=0.5)
+    ax1.set_aspect("equal")
+    ax1.set_xlabel("x, scan direction (µm)")
+    ax1.set_ylabel("y (µm)")
+    ax1.set_title("Plan view (surface, z = 0)")
+    st.pyplot(fig1, use_container_width=True)
+
+with col_section:
+    half_extent_y = dims["width"] / 2 * 1.6
+    depth_extent = dims["depth"] * 1.8
+    y2 = np.linspace(-half_extent_y, half_extent_y, 180)
+    z2 = np.linspace(0, depth_extent, 180)
+    T_section = _field(y2, z2, "yz")
+
+    fig2, ax2 = plt.subplots(figsize=(4.2, 4.2))
+    cf2 = ax2.contourf(y2 * 1e6, z2 * 1e6, T_section, levels=levels, cmap="inferno", extend="max")
+    ax2.contour(y2 * 1e6, z2 * 1e6, T_section, levels=[material.t_melt], colors="#00e5ff", linewidths=2)
+    ax2.invert_yaxis()
+    ax2.set_aspect("equal")
+    ax2.set_xlabel("y (µm)")
+    ax2.set_ylabel("depth z (µm)")
+    ax2.set_title("Cross-section (x = 0)")
+    st.pyplot(fig2, use_container_width=True)
+
+fig_cb, ax_cb = plt.subplots(figsize=(8, 0.4))
+fig_cb.subplots_adjust(bottom=0.6, top=0.95)
+cb = fig_cb.colorbar(cf2, cax=ax_cb, orientation="horizontal")
+cb.set_label(f"Temperature (K) — capped at display for contrast; cyan line = T_melt ({material.t_melt:.0f} K)")
+st.pyplot(fig_cb, use_container_width=True)
+
+st.caption(
+    "Plan-view trailing tail is cropped for display — the true isotherm runs far "
+    "longer behind the source, per the length caveat above."
+)
 
 st.markdown(
     """
