@@ -123,8 +123,8 @@ with col_plan:
     T_plan = _field(x, y, "xy")
 
     fig1, ax1 = plt.subplots(figsize=(6.5, 6.5))
-    cf1 = ax1.contourf(x * 1e6, y * 1e6, T_plan.T, levels=levels, cmap="inferno", extend="max")
-    ax1.contour(x * 1e6, y * 1e6, T_plan.T, levels=[material.t_melt], colors="#00e5ff", linewidths=2.5)
+    cf1 = ax1.contourf(x * 1e6, y * 1e6, T_plan, levels=levels, cmap="inferno", extend="max")
+    ax1.contour(x * 1e6, y * 1e6, T_plan, levels=[material.t_melt], colors="#00e5ff", linewidths=2.5)
     ax1.plot(0, 0, marker="*", color="white", markersize=14, markeredgecolor="black", markeredgewidth=0.7)
     ax1.set_aspect("equal")
     ax1.set_xlabel("x, scan direction (µm)")
