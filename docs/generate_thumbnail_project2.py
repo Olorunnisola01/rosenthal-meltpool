@@ -66,7 +66,11 @@ ax.add_patch(val_box)
 ax.text(7.0, 5.3, "VALIDATE", ha="center", va="center", fontsize=15, fontweight="bold")
 ax.text(7.0, 4.85, "vs. Zhang et al. (2024)", ha="center", va="center", fontsize=10.5, style="italic")
 
-bar_ax = ax.inset_axes([5.1, 2.05, 3.9, 2.35], transform=ax.transData)
+# Left edge pulled in further from the box border (was 5.1, only 0.35 units
+# from the box's 4.75 edge -- too tight for a rotated ylabel + tick labels,
+# which made "Width (um)" look jammed against the border). Width reduced to
+# compensate so the chart's right edge still sits comfortably inside the box.
+bar_ax = ax.inset_axes([5.55, 2.05, 3.45, 2.35], transform=ax.transData)
 cases = ZHANG_2024_316L
 labels = [c.case_id for c in cases]
 pred = [compare_to_case(c)["predicted_width"] * 1e6 for c in cases]
@@ -76,9 +80,9 @@ bar_ax.bar(x - 0.18, pred, width=0.36, color="#2b6cb0", label="Predicted")
 bar_ax.bar(x + 0.18, meas, width=0.36, color="#e07b39", label="Measured")
 bar_ax.set_xticks(x)
 bar_ax.set_xticklabels(labels, fontsize=8)
-bar_ax.set_ylabel("Width (µm)", fontsize=8)
-bar_ax.tick_params(axis="y", labelsize=7)
-bar_ax.legend(fontsize=7, loc="upper right", frameon=False)
+bar_ax.set_ylabel("Width (µm)", fontsize=7.5, labelpad=2)
+bar_ax.tick_params(axis="y", labelsize=6.5)
+bar_ax.legend(fontsize=6.5, loc="upper right", frameon=False)
 for spine in ["top", "right"]:
     bar_ax.spines[spine].set_visible(False)
 
