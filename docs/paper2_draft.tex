@@ -1,0 +1,175 @@
+\documentclass[12pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{times}
+\usepackage{authblk}
+
+\newtheorem{proposition}{Proposition}
+
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\graphicspath{{figures/}}
+
+\title{Quantifying the Validity Boundary of the Classical Point-Source Melt-Pool Model in Laser Powder Bed Fusion}
+
+\author[1]{Adeleke Olorunnisola Oyeyemi}
+\affil[1]{Department of Mechanical Engineering, Federal University of Technology, Akure, Nigeria}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The Rosenthal moving point-heat-source solution remains widely used for rapid melt-pool screening in laser powder bed fusion (L-PBF), despite documented cases where it disagrees substantially with experiment. Existing work addresses this gap in two ways: by proposing more elaborate heat-source models (e.g., the Eagar--Tsai finite Gaussian source, or extended Rosenthal formulations with explicit energy-balance corrections), or by validating a given analytical model against a specific experimental set without generalizing when it will or will not hold elsewhere. Neither approach directly answers a simpler, prior question a practitioner actually faces: given only process parameters and a laser spot size, can the plain, uncorrected 1946 point-source formulation be trusted at all, before investing in a more elaborate model? This paper (i) proves, as an exact analytical property rather than an empirical tendency, that the point-source formulation predicts a semicircular melt-pool cross-section (depth/width $\equiv 0.5$) for any material or process parameters; (ii) validates the model against four published single-track measurements for 316L stainless steel; and (iii) shows that prediction error correlates strongly ($r=0.9996$ for width) with a simple, computable dimensionless ratio -- predicted pool width divided by laser spot diameter -- yielding a preliminary quantitative threshold ($\Pi \gtrsim 1.16$) below which the uncorrected point-source model should not be trusted. The implementation, fully open-source and interactively deployable, and the validation dataset are made available to support extension to additional materials and process windows.
+\end{abstract}
+
+\section{Introduction}
+
+Predicting single-track melt-pool geometry is the cheapest and fastest screening step available before committing to full process-parameter optimization in laser powder bed fusion (L-PBF). Melt-pool width constrains safe hatch spacing between adjacent scan tracks; melt-pool depth governs whether successive powder layers remelt sufficiently to avoid lack-of-fusion porosity. The classical closed-form estimate for both is Rosenthal's 1946 solution for a point heat source moving at constant velocity across a semi-infinite solid \cite{rosenthal1946}, originally derived for arc welding and later adopted, largely unmodified, for L-PBF process screening.
+
+The model's limitations are well documented individually. Coen et al.\ \cite{coen2022} validated an analytical melt-pool methodology against Ti-6Al-4V, 316L, and Inconel 718 single tracks and reported material- and regime-dependent disagreement. Honarmandi et al.\ \cite{honarmandi2021} conducted a statistically rigorous test of the more elaborate Eagar--Tsai finite-Gaussian-source model and proposed a physics-based correction specifically for the keyhole regime. Imani Shahabad et al.\ \cite{imanishahabad2021} extended the Rosenthal formulation itself with an explicit energy audit of thermal boundary conditions to improve its accuracy. Each of these is a valuable, targeted correction to a specific analytical model.
+
+None of them, however, answers a question that precedes the choice of which corrected model to use: \emph{given only the process parameters and laser spot size on hand, is the plain, uncorrected 1946 point-source formulation good enough, or is a more elaborate model already necessary?} Practitioners currently answer this by experience or by trial validation against their own data, not from an explicit, transferable, a priori criterion. This paper formulates and addresses that narrower, prior question directly, using the simplest form of the model as the object of study rather than proposing yet another correction to it.
+
+\subsection{Contributions}
+\begin{enumerate}
+\item A formal proof that the point-source-at-surface Rosenthal formulation predicts an exactly semicircular melt-pool cross-section (depth/width $\equiv 0.5$) for any material or process parameters -- a structural property of the equation, not a fitting artifact, confirmed numerically across a full swept process window for four L-PBF alloys.
+\item Validation of this same formulation against four published single-track measurements for 316L \cite{zhang2024}, including a calibration search establishing that absorptivity adjustment alone cannot close the observed gap once predicted pool size approaches the laser spot diameter.
+\item A dimensionless pool-size-to-spot-size ratio, $\Pi = W_{\text{pred}}/d_{\text{spot}}$, shown on this dataset to correlate with prediction error at $r=0.9996$ (width) -- with the resulting threshold explicitly presented as a preliminary, single-material finding requiring broader multi-material validation, not a general result.
+\item A fully open-source, tested Python implementation with an interactive public demonstration, so the criterion above can be checked and extended by others rather than taken on trust.
+\end{enumerate}
+
+\section{Theoretical Background}
+
+\subsection{The Rosenthal Point-Source Solution}
+For a point heat source of absorbed power $Q$ moving at constant velocity $v$ along the $x$-axis across the surface of a semi-infinite solid, the quasi-steady-state temperature field in a frame moving with the source is
+\begin{equation}
+T(x,y,z) - T_0 = \frac{Q}{2\pi k R}\exp\!\left(-\frac{v(R+x)}{2\alpha}\right)
+\label{eq:rosenthal}
+\end{equation}
+where $R=\sqrt{x^2+y^2+z^2}$, $k$ is thermal conductivity, $T_0$ is ambient/preheat temperature, $\alpha=k/(\rho c_p)$ is thermal diffusivity, and $Q=\eta P$ with $\eta$ the absorptivity and $P$ the nominal laser power. The melt-pool boundary is the isotherm $T=T_{\text{melt}}$; width, depth, and length are obtained by numerical root-finding along the $y$, $z$, and $x$ axes respectively, since Eq.~\ref{eq:rosenthal} is transcendental in $R$.
+
+\subsection{An Exact Structural Property}
+\begin{proposition}
+For the temperature field of Eq.~\ref{eq:rosenthal}, evaluated at $x=0$ (the plane through the instantaneous source position), the melt-pool half-width and depth are exactly equal for any $Q$, $v$, $\alpha$, $k$, and $T_{\text{melt}}$.
+\end{proposition}
+\begin{proof}
+At $x=0$, $R=\sqrt{y^2+z^2}$. Evaluated along the $y$-axis ($z=0$), $R=|y|$; evaluated along the $z$-axis ($y=0$), $R=|z|$. Substituting into Eq.~\ref{eq:rosenthal}, $T(0,y,0)$ and $T(0,0,z)$ are identical functions of a single scalar distance ($|y|$ or $|z|$ respectively), since the equation depends on position only through $R$ and, at $x=0$, through $x$ itself (which is zero in both cases). The equation $T=T_{\text{melt}}$ therefore has the same root whether solved for $|y|$ or $|z|$: half-width $=$ depth. Consequently width $=2\times$depth, and depth/width $\equiv 0.5$.
+\end{proof}
+This is confirmed numerically to floating-point precision across a full power--velocity sweep (50--400~W, 200--2000~mm/s) for four L-PBF alloys (Ti-6Al-4V, 316L, AlSi10Mg, IN718), and locked into the accompanying software's regression test suite. It means the point-source model's predicted cross-section can never deviate from a perfect semicircle, regardless of parameter tuning -- real melt pools, which range from shallow (conduction mode) to deeper-than-wide (keyhole mode), are structurally outside what this formulation can represent.
+
+\section{Problem Formulation}
+
+Given the property above, and the documented but only qualitatively characterized disagreement between the point-source model and experiment (Section 1), we formulate the specific question addressed in this paper as follows. Let $W_{\text{pred}}$ be the melt-pool width predicted by Eq.~\ref{eq:rosenthal} for a given $(P, v, \eta, T_0, \text{material})$, and let $d_{\text{spot}}$ be the laser's physical spot diameter for the process in question. Define the dimensionless ratio
+\begin{equation}
+\Pi = \frac{W_{\text{pred}}}{d_{\text{spot}}}.
+\end{equation}
+The point-source assumption requires the resulting melt pool to be much larger than the source that produced it; $\Pi$ is a direct, computable proxy for how well that requirement is satisfied, available \emph{before} any experiment or simulation is run. The question this paper asks is narrow and specific: \emph{does prediction error correlate with $\Pi$ strongly enough, on available published data, to propose $\Pi$ as a screening criterion, and if so, what threshold value of $\Pi$ separates acceptable from unacceptable use of the uncorrected point-source model?} We do not claim to answer this generally across all L-PBF materials and regimes; Section~5 gives the result on the one dataset available for this study and states explicitly what would be needed to generalize it.
+
+\section{Methodology}
+
+\subsection{Software Implementation}
+The Rosenthal solution and its root-finding routines are implemented as a documented, dependency-light Python package (\texttt{scipy} only), with a parameter-sweep module for generating process maps and a validation module implementing the calibration search described below. The only material-specific inputs are constant (temperature-averaged) thermophysical properties, drawn from Mills' compilation for commercial alloys \cite{mills2002}.
+
+\subsection{Validation Dataset}
+Model predictions were compared against four bare-plate single-track measurements for 316L stainless steel from Zhang et al.\ \cite{zhang2024} (Table~3 of that work), which reports laser power, scan velocity, measured melt-pool width and depth, and states an assumed absorptivity of 0.5 and a $100~\mu\text{m}$ laser spot diameter. Predictions were generated at the same absorptivity and a preheat of 300~K.
+
+\subsection{Absorptivity Calibration Search}
+For each case, the absorptivity that would make predicted width (or depth) exactly match the measured value was searched for via root-finding over the interval $[0.01, 5.0]$ -- deliberately extending past the physically possible range (absorptivity $\leq 1$) to separate ``the assumed absorptivity was wrong'' from ``no absorptivity closes this gap.''
+
+\subsection{Correlation Analysis}
+$\Pi$ was computed for each of the four validation cases using the reported $100~\mu\text{m}$ spot diameter, and its Pearson correlation with signed percentage prediction error was computed for width and depth separately.
+
+\section{Results}
+
+\subsection{Process Maps and the Semicircle Identity}
+Figures~\ref{fig:map316l} and \ref{fig:mapalsi} show swept process maps for 316L and AlSi10Mg across the full power--velocity grid. Both show the expected trend of increasing width and depth with power and decreasing with velocity, at material-dependent absolute scales (AlSi10Mg reaches roughly $470~\mu\text{m}$ peak width versus 316L's roughly $220~\mu\text{m}$ at identical parameters, consistent with its $\sim\!5\times$ higher thermal conductivity). The depth/width ratio panel is numerically flat at exactly 0.5 across the entire swept range for both materials, confirming the Proposition of Section~2 holds everywhere the model can be evaluated, not only at isolated points.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth]{process_map_316L.png}
+\caption{316L process map. The depth/width ratio panel (right) is uniform at 0.5 across the entire power-velocity grid.}
+\label{fig:map316l}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth]{process_map_AlSi10Mg.png}
+\caption{AlSi10Mg process map at identical sweep ranges, illustrating the conductivity-driven scale difference.}
+\label{fig:mapalsi}
+\end{figure}
+
+\subsection{Validation Against Published Data}
+
+\begin{table}[!t]
+\centering
+\caption{Predicted vs. measured dimensions, Zhang et al.\ \cite{zhang2024}, and the pool-size-to-spot-size ratio $\Pi$}
+\label{tab:validation}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Case & $P$ (W) & $v$ (mm/s) & $\Pi$ & Width err. & Depth err. \\
+\midrule
+N01 & 260 & 520  & 1.058 & $-7.2\%$  & $-70.6\%$ \\
+N04 & 260 & 1470 & 0.487 & $-48.1\%$ & $-60.0\%$ \\
+N05 & 260 & 2200 & 0.356 & $-57.1\%$ & $-56.6\%$ \\
+N06 & 440 & 1470 & 0.547 & $-44.1\%$ & $-73.7\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:validation} shows a clear, monotonic relationship: as $\Pi$ increases toward and past 1, width error shrinks sharply, from $-57.1\%$ at $\Pi=0.356$ to $-7.2\%$ at $\Pi=1.058$. The Pearson correlation between $\Pi$ and signed width error is $r=0.9996$ across these four points. A linear fit gives
+\begin{equation}
+\text{width error (\%)} \approx 71.4\,\Pi - 82.9,
+\end{equation}
+implying zero width error near $\Pi\approx1.16$ -- i.e., on this dataset, the uncorrected point-source model's width prediction becomes trustworthy only once the predicted pool is somewhat larger than the laser spot itself, consistent with the point-source assumption's basic physical requirement.
+
+The correlation is markedly weaker for depth ($r=-0.62$), because case N01 -- despite having the most favorable $\Pi$ -- is also the most keyhole-influenced case (measured aspect ratio 1.58), and no conduction-only model can represent keyhole-driven depth enhancement regardless of $\Pi$. This is consistent with the Proposition of Section~2: the model's depth prediction is mechanically tied to its (always 0.5) width prediction, so no version of this formulation can independently correct depth once the true process departs from conduction mode.
+
+The calibration search confirms this is not an absorptivity problem: depth cannot be matched for any of the four cases at absorptivity up to 500\%, and width can only be matched for N01 (the case with the most favorable $\Pi$), at a physically plausible 65.8\%.
+
+\section{Discussion}
+
+The finding that $\Pi$ correlates this strongly with width error, on this dataset, is a preliminary result and should be read as exactly that: four points, one material, one published source. It is offered as a demonstration that a computable, a priori criterion \emph{can} be constructed and is worth testing further -- not as a validated general threshold. Extending it would require aggregating single-track measurements across additional materials and studies (e.g., \cite{coen2022}), which is the direct next step this paper motivates rather than completes.
+
+This result is complementary to, not competing with, the corrected-model literature. Honarmandi et al.\ \cite{honarmandi2021} and Imani Shahabad et al.\ \cite{imanishahabad2021} both improve prediction accuracy by elaborating the heat-source model itself. This paper instead asks when that elaboration is necessary at all: a practitioner with only process parameters and a spot size in hand can compute $\Pi$ before running anything, and use it to decide whether the plain 1946 formulation suffices or whether the added complexity of an Eagar--Tsai or extended-Rosenthal model is warranted.
+
+\section{Conclusion}
+
+The classical point-source Rosenthal model is shown, as an exact analytical property rather than an empirical tendency, to predict a semicircular melt-pool cross-section for any material or process parameters. Validated against four published 316L single-track measurements, prediction error correlates strongly with a simple, precomputable pool-size-to-spot-size ratio, yielding a preliminary quantitative threshold for when the uncorrected model should not be trusted. The open-source implementation and validation data accompanying this paper are intended to support testing this criterion against additional materials and studies.
+
+\section*{Data and Code Availability}
+The Python implementation, test suite, validation dataset, and an interactive public demonstration are available at \url{https://github.com/Olorunnisola01/rosenthal-meltpool} and \url{https://rosenthal-meltpool.streamlit.app}.
+
+\begin{thebibliography}{9}
+
+\bibitem{rosenthal1946}
+D. Rosenthal, ``The theory of moving sources of heat and its application to metal treatments,'' \textit{Trans. ASME}, vol. 68, pp. 849--866, 1946.
+
+\bibitem{mills2002}
+K. C. Mills, \textit{Recommended Values of Thermophysical Properties for Selected Commercial Alloys}. Cambridge, U.K.: Woodhead Publishing, 2002.
+
+\bibitem{zhang2024}
+S. Zhang \textit{et al.}, ``Understanding melt pool behavior of 316L stainless steel in laser powder bed fusion additive manufacturing,'' \textit{Micromachines}, vol. 15, no. 2, p. 170, 2024, doi: 10.3390/mi15020170.
+
+\bibitem{coen2022}
+V. Coen, L. Goossens, and B. Van Hooreweder, ``Methodology and experimental validation of analytical melt pool models for laser powder bed fusion,'' \textit{J. Mater. Process. Technol.}, art. no. 117547, 2022, doi: 10.1016/j.jmatprotec.2022.117547.
+
+\bibitem{honarmandi2021}
+P. Honarmandi \textit{et al.}, ``A rigorous test and improvement of the Eagar-Tsai model for melt pool characteristics in laser powder bed fusion additive manufacturing,'' \textit{Additive Manufacturing}, vol. 47, 2021, doi: 10.1016/j.addma.2021.102300.
+
+\bibitem{imanishahabad2021}
+S. Imani Shahabad, G. Karimi, and E. Toyserkani, ``An extended Rosenthal's model for laser powder-bed fusion additive manufacturing: energy auditing of thermal boundary conditions,'' \textit{Lasers Manuf. Mater. Process.}, vol. 8, pp. 288--311, 2021, doi: 10.1007/s40516-021-00148-0.
+
+\bibitem{goldak1984}
+J. Goldak, A. Chakravarti, and M. Bibby, ``A new finite element model for welding heat sources,'' \textit{Metallurgical Transactions B}, vol. 15, no. 2, pp. 299--305, 1984.
+
+\end{thebibliography}
+
+\end{document}
