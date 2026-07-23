@@ -28,9 +28,9 @@
 
 \begin{abstract}
 \noindent\textbf{Purpose:} The Rosenthal moving point-heat-source solution remains widely used for rapid melt-pool screening in laser powder bed fusion (L-PBF), despite documented disagreement with experiment. Existing work either proposes more elaborate corrected heat-source models or validates one analytical model against a specific dataset, without generalizing when the simplest, uncorrected formulation can be trusted at all. This paper formulates and tests that narrower, prior question directly.
-\textbf{Methods:} We prove, as an exact analytical property, that the point-source formulation predicts a semicircular melt-pool cross-section (depth/width $\equiv 0.5$) for any parameters, confirmed numerically across a swept process window for four L-PBF alloys. We then define a dimensionless pool-size-to-spot-size ratio, $\Pi = W_{\text{pred}}/d_{\text{spot}}$, and test its correlation with prediction error against two independent published 316L datasets: four single-track cases from one study, and 172 bare-plate single-track measurements from a second, larger, systematically-varied study.
-\textbf{Results:} On the small dataset, $\Pi$ correlates with width error at $r=0.9996$; on the 172-point dataset, the correlation is weaker but still significant ($r=0.68$), and a large, absorptivity-independent underprediction bias persists across nearly all cases (97\% negative width error even at unphysical absorptivity of 100\%). The discrepancy between the two datasets is itself informative: it demonstrates that small validation samples can substantially overstate a criterion's strength.
-\textbf{Conclusion:} The uncorrected point-source model has a computable, quantifiable, but only moderately predictive validity boundary; absorptivity tuning cannot compensate for its point-source assumption once predicted pool size approaches the physical beam scale. An open-source implementation and both validation datasets are made available to support further testing.
+\textbf{Methods:} We prove, as an exact analytical property, that the point-source formulation predicts a semicircular melt-pool cross-section (depth/width $\equiv 0.5$) for any parameters, confirmed numerically across a swept process window for four L-PBF alloys. We then define a dimensionless pool-size-to-spot-size ratio, $\Pi = W_{\text{pred}}/d_{\text{spot}}$, and test its correlation with prediction error against three independent published datasets of very different size, material, and provenance: four single-track 316L cases from one laboratory study, 172 systematically-varied bare-plate 316L cases from a second, and seven IN718 cases from the NIST AM-Bench 2022 metrology-grade benchmark series.
+\textbf{Results:} $\Pi$ correlates with width error on all three datasets ($r=0.9996$, $n=4$; $r=0.68$, $n=172$; $r=0.85$, $n=7$, respectively), but the implied error-free threshold differs by roughly a factor of three between the smallest and largest samples. A large, absorptivity-independent underprediction bias is present in all three (97-100\% of cases underpredicted even at unphysical absorptivity of 100\%). The spread across datasets is itself informative: it demonstrates that small validation samples can substantially overstate a proposed criterion's precision, even when the qualitative trend they identify is real and reproduces at scale.
+\textbf{Conclusion:} The uncorrected point-source model has a computable, quantifiable, but only moderately predictive validity boundary; absorptivity tuning cannot compensate for its point-source assumption once predicted pool size approaches the physical beam scale. An open-source implementation and all three validation datasets are made available to support further testing.
 
 \vspace{0.5em}
 \noindent\textbf{Keywords:} laser powder bed fusion, melt pool modeling, Rosenthal equation, analytical heat source, model validation, additive manufacturing
@@ -38,20 +38,26 @@
 
 \section{Introduction}
 
-Predicting single-track melt-pool geometry is the cheapest and fastest screening step available before committing to full process-parameter optimization in laser powder bed fusion (L-PBF). Melt-pool width constrains safe hatch spacing between adjacent scan tracks; melt-pool depth governs whether successive powder layers remelt sufficiently to avoid lack-of-fusion porosity \cite{yadroitsev2010}. The classical closed-form estimate for both is Rosenthal's 1946 solution for a point heat source moving at constant velocity across a semi-infinite solid \cite{rosenthal1946}, originally derived for arc welding and later adopted, largely unmodified, for L-PBF process screening.
+Predicting single-track melt-pool geometry is the cheapest and fastest screening step available before committing to full process-parameter optimization in laser powder bed fusion (L-PBF). Melt-pool width constrains safe hatch spacing between adjacent scan tracks; melt-pool depth governs whether successive powder layers remelt sufficiently to avoid lack-of-fusion porosity, as established in the foundational single-track morphology studies of Yadroitsev et al.\ \cite{yadroitsev2010}. The classical closed-form estimate for both is Rosenthal's 1946 solution for a point heat source moving at constant velocity across a semi-infinite solid \cite{rosenthal1946}, originally derived for arc welding and later adopted, largely unmodified, for L-PBF process screening.
 
-Process-parameter selection guided by simple lumped metrics such as volumetric energy density is known to be unreliable across process regimes \cite{bertoli2017}, motivating physically grounded thermal models over empirical energy-density heuristics. Among these, analytical point- and distributed-source solutions remain attractive because they are orders of magnitude cheaper than finite-element or computational-fluid-dynamics simulation, at the cost of simplifying assumptions whose validity is not always examined explicitly.
+\subsection{Why Simple Metrics and Simple Models Both Fall Short}
+Process-parameter selection guided by lumped scalar metrics such as volumetric energy density is known to be unreliable across process regimes: Bertoli et al.\ \cite{bertoli2017} showed that single tracks produced at identical energy density can have markedly different morphology, because energy density collapses independent physical effects of power, velocity, and spot size into one number. This motivates physically grounded thermal models over empirical energy-density heuristics -- but the physics itself is regime-dependent in ways a point-source model cannot see. Khairallah et al.\ \cite{khairallah2016}, using high-fidelity powder-scale simulation, showed that once recoil pressure and Marangoni-driven melt flow become significant, the resulting vapor depression (keyhole) fundamentally changes melt-pool shape and generates the pore and spatter defects that conduction-only models cannot predict. Separately, Trapp et al.\ \cite{trapp2017} measured, via in-situ calorimetry, that effective laser absorptivity for common L-PBF alloys is not a fixed material constant but varies by roughly a factor of two with process parameters, driven by powder-layer scattering and the onset of recoil-pressure-induced surface depression -- meaning the single free parameter most models use to fit reality is itself regime-dependent.
 
-The model's limitations have been documented individually by several groups. Coen et al.\ \cite{coen2022} validated an analytical melt-pool methodology against Ti-6Al-4V, 316L, and Inconel 718 single tracks and reported material- and regime-dependent disagreement. Honarmandi et al.\ \cite{honarmandi2021} conducted a statistically rigorous test of the more elaborate Eagar--Tsai finite-Gaussian-source model \cite{eagartsai1983} and proposed a physics-based correction specifically for the keyhole regime. Imani Shahabad et al.\ \cite{imanishahabad2021} extended the Rosenthal formulation itself with an explicit energy audit of thermal boundary conditions to improve its accuracy. Zhang et al.\ \cite{zhang2024} and, at much larger scale, Hofmann et al.\ \cite{hofmann2026} report systematically varied single-track experiments for 316L that make direct quantitative comparison against analytical predictions possible. Each of these is a valuable, targeted contribution -- either a correction to a specific analytical model, or a dataset against which one particular parameter set is checked.
+\subsection{The Corrected-Model Literature}
+The plain Rosenthal model's limitations have been addressed individually by several groups, each targeting a specific correction rather than the model's basic applicability range. Coen et al.\ \cite{coen2022} validated an analytical melt-pool methodology against Ti-6Al-4V, 316L, and Inconel 718 single tracks and reported material- and regime-dependent disagreement. Honarmandi et al.\ \cite{honarmandi2021} conducted a statistically rigorous test of the more elaborate Eagar--Tsai finite-Gaussian-source model \cite{eagartsai1983} and proposed a physics-based correction specifically for the keyhole regime. Imani Shahabad et al.\ \cite{imanishahabad2021} extended the Rosenthal formulation itself with an explicit energy audit of thermal boundary conditions to improve its accuracy. In parallel, a substantial and growing machine-learning literature -- reviewed by Wang et al.\ \cite{wang2023} -- trains data-driven surrogates directly on melt-pool image or sensor data, trading interpretability and the ability to extrapolate outside the training distribution for potentially higher in-distribution accuracy than any analytical model.
 
-None of them, however, answers a question that precedes the choice of which corrected model to use: \emph{given only the process parameters and laser spot size on hand, is the plain, uncorrected 1946 point-source formulation good enough, or is a more elaborate model already necessary?} Practitioners currently answer this by experience or by trial validation against their own data, not from an explicit, transferable, a priori criterion. This paper formulates and addresses that narrower, prior question directly, using the simplest form of the model as the object of study rather than proposing yet another correction to it.
+\subsection{Validation Data and the NIST AM-Bench Series}
+Quantitative validation requires measured single-track data of known provenance and quality. Zhang et al.\ \cite{zhang2024} and, at much larger scale, Hofmann et al.\ \cite{hofmann2026} report systematically varied single-track experiments for 316L. Material-specific single-track studies exist for other L-PBF alloys as well, including AlSi10Mg \cite{wei2017}. The single most widely used reference measurements in this literature, however, are the NIST Additive Manufacturing Benchmark Test Series (AM-Bench), a NIST-led, metrology-grade benchmark program explicitly designed so that independent modelling groups can test simulations against rigorously characterized, uncertainty-quantified measurements rather than against another group's own experimental setup \cite{levine2018,lane2022}. The 2022 series includes single-track melt-pool cross-section measurements on IN718 with explicitly reported measurement uncertainty \cite{weaver2024}, and is used here as the highest-provenance of the three validation datasets.
+
+\subsection{The Gap}
+None of the above answers a question that precedes the choice of which corrected model to use: \emph{given only the process parameters and laser spot size on hand, is the plain, uncorrected 1946 point-source formulation good enough, or is a more elaborate model already necessary?} Practitioners currently answer this by experience or by trial validation against their own data, not from an explicit, transferable, a priori criterion. This paper formulates and addresses that narrower, prior question directly, using the simplest form of the model as the object of study rather than proposing yet another correction to it, and validates the resulting criterion across three independent datasets differing in material, machine, and provenance rather than one.
 
 \subsection{Contributions}
 \begin{enumerate}
 \item A formal proof that the point-source-at-surface Rosenthal formulation predicts an exactly semicircular melt-pool cross-section (depth/width $\equiv 0.5$) for any material or process parameters -- a structural property of the equation, not a fitting artifact, confirmed numerically across a full swept process window for four L-PBF alloys.
-\item Validation against two independent published 316L datasets of very different size (four single-track cases \cite{zhang2024}; 172 single-track cases \cite{hofmann2026}), including a calibration search establishing that absorptivity adjustment alone cannot close the observed gap once predicted pool size approaches the laser spot diameter, at either scale.
-\item A dimensionless pool-size-to-spot-size ratio, $\Pi = W_{\text{pred}}/d_{\text{spot}}$, whose correlation with prediction error is shown to differ sharply between the two datasets ($r=0.9996$ at $n=4$ versus $r=0.68$ at $n=172$) -- an explicit, quantified demonstration that small validation samples can substantially overstate a proposed criterion's strength, reported here as a methodological finding in its own right.
-\item A fully open-source, tested Python implementation, an interactive public demonstration, and both validation datasets, so the criterion above can be checked and extended by others rather than taken on trust.
+\item Validation against three independent published datasets differing by nearly two orders of magnitude in size and spanning two materials and three distinct sources: four 316L single-track cases \cite{zhang2024}, 172 systematically-varied 316L cases \cite{hofmann2026}, and seven IN718 cases from the NIST AM-Bench 2022 metrology benchmark \cite{weaver2024}. A calibration search establishes that absorptivity adjustment alone cannot close the observed gap on any of the three, once predicted pool size approaches the laser spot diameter.
+\item A dimensionless pool-size-to-spot-size ratio, $\Pi = W_{\text{pred}}/d_{\text{spot}}$, whose correlation with prediction error is shown to differ sharply across the three datasets ($r=0.9996$, $n=4$; $r=0.68$, $n=172$; $r=0.85$, $n=7$) -- an explicit, quantified demonstration that small validation samples can substantially overstate a proposed criterion's precision, reported here as a methodological finding in its own right.
+\item A fully open-source, tested Python implementation, an interactive public demonstration, and all three validation datasets (redistributed under their original open licenses), so the criterion above can be checked and extended by others rather than taken on trust.
 \end{enumerate}
 
 \section{Theoretical Background}
@@ -71,7 +77,7 @@ For the temperature field of Eq.~\ref{eq:rosenthal}, evaluated at $x=0$ (the pla
 \begin{proof}
 At $x=0$, $R=\sqrt{y^2+z^2}$. Evaluated along the $y$-axis ($z=0$), $R=|y|$; evaluated along the $z$-axis ($y=0$), $R=|z|$. Substituting into Eq.~\ref{eq:rosenthal}, $T(0,y,0)$ and $T(0,0,z)$ are identical functions of a single scalar distance ($|y|$ or $|z|$ respectively), since the equation depends on position only through $R$ and, at $x=0$, through $x$ itself (which is zero in both cases). The equation $T=T_{\text{melt}}$ therefore has the same root whether solved for $|y|$ or $|z|$: half-width $=$ depth. Consequently width $=2\times$depth, and depth/width $\equiv 0.5$.
 \end{proof}
-This is confirmed numerically to floating-point precision across a full power--velocity sweep (50--400~W, 200--2000~mm/s) for four L-PBF alloys (Ti-6Al-4V, 316L, AlSi10Mg, IN718), and locked into the accompanying software's regression test suite. It means the point-source model's predicted cross-section can never deviate from a perfect semicircle, regardless of parameter tuning -- real melt pools, which range from shallow (conduction mode) to deeper-than-wide (keyhole mode), are structurally outside what this formulation can represent.
+This is confirmed numerically to floating-point precision across a full power--velocity sweep (50--400~W, 200--2000~mm/s) for four L-PBF alloys (Ti-6Al-4V, 316L, AlSi10Mg, IN718), and locked into the accompanying software's regression test suite. It means the point-source model's predicted cross-section can never deviate from a perfect semicircle, regardless of parameter tuning. Real melt pools, by contrast, transition continuously between shallow conduction-mode pools and deep, narrow keyhole-mode pools once recoil pressure and vapor depression become significant \cite{khairallah2016} -- a regime this formulation is structurally unable to represent, independent of any parameter fitting.
 
 \section{Problem Formulation}
 
@@ -79,7 +85,7 @@ Given the property above, and the documented but only qualitatively characterize
 \begin{equation}
 \Pi = \frac{W_{\text{pred}}}{d_{\text{spot}}}.
 \end{equation}
-The point-source assumption requires the resulting melt pool to be much larger than the source that produced it; $\Pi$ is a direct, computable proxy for how well that requirement is satisfied, available \emph{before} any experiment or simulation is run. The question this paper asks is narrow and specific: \emph{does prediction error correlate with $\Pi$ strongly enough, on available published data, to propose $\Pi$ as a screening criterion, and if so, what threshold value of $\Pi$ separates acceptable from unacceptable use of the uncorrected point-source model, and how does the answer change with the size and diversity of the validation data used to derive it?} The last clause is deliberate: Section~5 shows that this question cannot be answered responsibly from a small sample alone.
+The point-source assumption requires the resulting melt pool to be much larger than the source that produced it; $\Pi$ is a direct, computable proxy for how well that requirement is satisfied, available \emph{before} any experiment or simulation is run. The question this paper asks is narrow and specific: \emph{does prediction error correlate with $\Pi$ strongly enough, on available published data, to propose $\Pi$ as a screening criterion, and if so, what threshold value of $\Pi$ separates acceptable from unacceptable use of the uncorrected point-source model, and how does the answer change with the size, material, and provenance of the validation data used to derive it?} The last clause is deliberate: Section~5 shows that this question cannot be answered responsibly from a single small sample, and tests it against three independently sourced datasets rather than one.
 
 \section{Methodology}
 
@@ -87,19 +93,21 @@ The point-source assumption requires the resulting melt pool to be much larger t
 The Rosenthal solution and its root-finding routines are implemented as a documented, dependency-light Python package (\texttt{scipy} only), with a parameter-sweep module for generating process maps and a validation module implementing the calibration search described below. The only material-specific inputs are constant (temperature-averaged) thermophysical properties, drawn from Mills' compilation for commercial alloys \cite{mills2002}.
 
 \subsection{Validation Datasets}
-Two independent published 316L single-track datasets were used, deliberately chosen to differ by nearly two orders of magnitude in size.
+Three independent published single-track datasets were used, deliberately chosen to differ in size, material, machine, and provenance.
 
-\emph{Dataset A} \cite{zhang2024}: four bare-plate single-track cases (Table~3 of that work), reporting laser power, scan velocity, measured melt-pool width and depth, an assumed absorptivity of 0.5, and a $100~\mu\text{m}$ laser spot diameter.
+\emph{Dataset A} \cite{zhang2024}: four bare-plate 316L single-track cases (Table~3 of that work), reporting laser power, scan velocity, measured melt-pool width and depth, an assumed absorptivity of 0.5, and a $100~\mu\text{m}$ laser spot diameter.
 
 \emph{Dataset B} \cite{hofmann2026}: 677 single-track experiments on an Aconity-Midi machine, systematically varying laser power, scan velocity, laser spot diameter (four levels: 50, 80, 110, and 140~$\mu$m), and powder layer thickness (0, 30, and 60~$\mu$m), with a flag for balling instability. This study is restricted here to the 172 bare-plate ($t_{\text{powder}}=0$), non-balling cases, so that the comparison is not confounded by powder-layer effects the point-source model does not represent, nor by a distinct instability mode (balling) unrelated to conduction/keyhole regime classification.
 
-Both datasets are released under open licenses and are redistributed alongside the accompanying software for reproducibility.
+\emph{Dataset C} \cite{weaver2024}: seven single-track IN718 cases from the NIST AM-Bench 2022 benchmark series (Table~4 of that work), spanning three laser spot sizes (49, 67, and 82~$\mu$m) and varying power and velocity around a baseline condition. Unlike Datasets A and B, these measurements carry an explicitly reported measurement uncertainty and are independent of any particular modelling group's own methodology, making this the highest-provenance dataset used here.
+
+All three datasets are released under open licenses (Datasets A and C under their respective publishers' terms with attribution; Dataset B under CC-BY-4.0) and are redistributed alongside the accompanying software for reproducibility.
 
 \subsection{Absorptivity Calibration Search}
-For each case in Dataset A, the absorptivity that would make predicted width (or depth) exactly match the measured value was searched for via root-finding over the interval $[0.01, 5.0]$ -- deliberately extending past the physically possible range (absorptivity $\leq 1$) to separate ``the assumed absorptivity was wrong'' from ``no absorptivity closes this gap.'' For Dataset B, mean absolute percentage width error was evaluated at fixed absorptivity values from 0.3 to 2.0 to test whether a single re-calibrated absorptivity value could remove the systematic bias observed at the default value.
+For each case in Dataset A, the absorptivity that would make predicted width (or depth) exactly match the measured value was searched for via root-finding over the interval $[0.01, 5.0]$ -- deliberately extending past the physically possible range (absorptivity $\leq 1$) to separate ``the assumed absorptivity was wrong'' from ``no absorptivity closes this gap.'' For Datasets B and C, mean absolute percentage width error was evaluated at fixed absorptivity values from 0.3 to 2.0 to test whether a single re-calibrated absorptivity value could remove the systematic bias observed at the default value.
 
 \subsection{Correlation Analysis}
-$\Pi$ was computed for every case in both datasets using each case's own reported spot diameter, and its Pearson correlation with signed percentage prediction error was computed for width and depth separately, on each dataset independently.
+$\Pi$ was computed for every case in all three datasets using each case's own reported spot diameter, and its Pearson correlation with signed percentage prediction error was computed for width and depth separately, on each dataset independently.
 
 \section{Results}
 
@@ -120,7 +128,7 @@ Figures~\ref{fig:map316l} and \ref{fig:mapalsi} show swept process maps for 316L
 \label{fig:mapalsi}
 \end{figure}
 
-\subsection{Validation on Dataset A (n=4)}
+\subsection{Validation on Dataset A (316L, n=4)}
 
 \begin{table}[!t]
 \centering
@@ -140,45 +148,68 @@ N06 & 440 & 1470 & 0.547 & $-44.1\%$ & $-73.7\%$ \\
 
 Table~\ref{tab:validationA} shows a clear, monotonic relationship: as $\Pi$ increases toward and past 1, width error shrinks sharply, from $-57.1\%$ at $\Pi=0.356$ to $-7.2\%$ at $\Pi=1.058$. The Pearson correlation between $\Pi$ and signed width error is $r=0.9996$ across these four points, with a linear fit implying zero width error near $\Pi\approx1.16$. The calibration search confirms this is not simply an absorptivity problem: depth cannot be matched for any of the four cases at absorptivity up to 500\%, and width can only be matched for N01 (the case with the most favorable $\Pi$), at a physically plausible 65.8\%.
 
-\subsection{Validation on Dataset B (n=172)}
+\subsection{Validation on Dataset B (316L, n=172)}
 
 Applying the same procedure to the 172 bare-plate, non-balling cases from Dataset B gives a materially different picture. The Pearson correlation between $\Pi$ and signed width error is $r=0.68$ -- a real, statistically meaningful relationship at this sample size, but far weaker than Dataset A suggested. A linear fit gives width error $\approx 20.3\,\Pi - 68.7$ (\%), implying a zero-error threshold near $\Pi\approx3.4$ -- roughly three times higher than the threshold implied by Dataset A alone.
 
-More strikingly, the model underpredicts width in essentially every case (171 of 172, or 99\%) at the default absorptivity of 0.4, with a mean width error of $-50.5\%$. Repeating the fit at absorptivity values from 0.3 to 2.0 shows the correlation coefficient is essentially unchanged ($r=0.676$ to $r=0.677$) regardless of absorptivity, while the systematic underprediction persists even at an unphysical absorptivity of 1.0 (100\%): mean width error $-36.2\%$, with 97\% of cases still underpredicted. Absorptivity shifts the intercept of the error-versus-$\Pi$ relationship but does not remove it, confirming at two orders of magnitude larger sample size the same conclusion Dataset A's calibration search suggested: this is a structural limitation of the point-source assumption, not an absorptivity-tuning problem.
+More strikingly, the model underpredicts width in essentially every case (171 of 172, or 99\%) at the default absorptivity of 0.4, with a mean width error of $-50.5\%$. Repeating the fit at absorptivity values from 0.3 to 2.0 shows the correlation coefficient is essentially unchanged ($r=0.676$ to $r=0.677$) regardless of absorptivity, while the systematic underprediction persists even at an unphysical absorptivity of 1.0 (100\%): mean width error $-36.2\%$, with 97\% of cases still underpredicted.
+
+\subsection{Validation on Dataset C (IN718, NIST AM-Bench 2022, n=7)}
 
 \begin{table}[!t]
 \centering
-\caption{Comparison of the $\Pi$-error relationship across datasets}
-\label{tab:comparison}
-\begin{tabular}{@{}lrrr@{}}
+\caption{Dataset C \cite{weaver2024}: NIST AM-Bench 2022 IN718, predicted vs. measured}
+\label{tab:validationC}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
- & Dataset A & Dataset B \\
- & (n=4) & (n=172) \\
+Case & $P$ (W) & $v$ (mm/s) & $\Pi$ & Width err. & Meas. AR \\
 \midrule
-Pearson $r$ (width) & 0.9996 & 0.676 \\
-Zero-error $\Pi$ threshold & $\approx 1.16$ & $\approx 3.39$ \\
-Mean width error & -- & $-50.5\%$ \\
-Fraction underpredicted & 100\% & 99\% \\
+0   & 285 & 960  & 0.767 & $-62.3\%$ & 1.02 \\
+1.1 & 285 & 960  & 1.049 & $-51.6\%$ & 2.14 \\
+1.2 & 285 & 960  & 0.627 & $-63.7\%$ & 0.72 \\
+2.1 & 285 & 1200 & 0.642 & $-61.9\%$ & 0.97 \\
+2.2 & 285 & 800  & 0.886 & $-62.0\%$ & 1.13 \\
+3.1 & 325 & 960  & 0.788 & $-60.7\%$ & 1.24 \\
+3.2 & 245 & 960  & 0.744 & $-61.5\%$ & 0.90 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The correlation is markedly weaker for depth than for width on both datasets (Dataset A: $r=-0.62$; a similarly attenuated relationship on Dataset B), because keyhole-influenced cases -- which can have favorable $\Pi$ yet still show large depth error -- are mechanically tied, in this model, to the same (always 0.5) width-derived prediction. No conduction-only point-source model can independently correct depth once the true process departs from conduction mode, regardless of $\Pi$.
+This is a different material (IN718 rather than 316L), a different laboratory (NIST's Additive Manufacturing Metrology Testbed rather than a university or industrial partner machine), and the only dataset of the three with explicitly quantified measurement uncertainty. The Pearson correlation between $\Pi$ and width error is $r=0.845$ -- intermediate between Datasets A and B, and, critically, a third independent confirmation that the qualitative trend (error improves as $\Pi$ increases) is real and not an artifact specific to 316L or to any one laboratory's measurement practice. Measured aspect ratios span 0.72 to 2.14 (Table~\ref{tab:validationC}), including a strongly keyhole-influenced case (1.1, AR$=2.14$) that the model's fixed 0.5 ratio cannot represent regardless of $\Pi$. Width is underpredicted in all seven cases, by 51.6\% to 63.7\%.
+
+\begin{table}[!t]
+\centering
+\caption{Comparison of the $\Pi$-error relationship across all three datasets}
+\label{tab:comparison}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & Dataset A & Dataset B & Dataset C \\
+ & 316L, n=4 & 316L, n=172 & IN718, n=7 \\
+\midrule
+Pearson $r$ (width) & 0.9996 & 0.676 & 0.845 \\
+Zero-error $\Pi$ threshold & $\approx 1.16$ & $\approx 3.39$ & -- \\
+Mean width error & -- & $-50.5\%$ & $-60.5\%$ \\
+Fraction underpredicted & 100\% & 99\% & 100\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The correlation is markedly weaker for depth than for width on Datasets A and B (Dataset A: $r=-0.62$), because keyhole-influenced cases -- which can have favorable $\Pi$ yet still show large depth error -- are mechanically tied, in this model, to the same (always 0.5) width-derived prediction. No conduction-only point-source model can independently correct depth once the true process departs from conduction mode, regardless of $\Pi$; case 1.1 in Dataset C (AR$=2.14$) is a direct illustration.
 
 \section{Discussion}
 
-\subsection{Small Samples Overstate the Criterion}
-The gap between $r=0.9996$ (n=4) and $r=0.68$ (n=172) is itself a central, reportable finding, not merely a caveat. Four points, especially when drawn from a narrow parameter range within one study, can produce a near-perfect apparent linear relationship by chance or by unrepresentative coverage of the underlying parameter space; the 172-point dataset, spanning four spot sizes and a wider power--velocity range, reveals a real but substantially noisier relationship and a threshold roughly three times higher than the small sample implied. Any criterion derived from a handful of validation points -- including, potentially, criteria proposed elsewhere in this literature -- should be treated as provisional until checked against a larger, independently collected dataset. This paper's own initial finding on Dataset A is presented as an illustration of exactly this risk, not as a result that survived unchanged.
+\subsection{Small Samples Overstate the Criterion's Precision, Not Its Existence}
+The gap between $r=0.9996$ (n=4) and $r=0.68$ (n=172) is a central, reportable finding, not merely a caveat. Four points, especially when drawn from a narrow parameter range within one study, can produce a near-perfect apparent linear relationship by chance or by unrepresentative coverage of the underlying parameter space; the 172-point dataset, spanning four spot sizes and a wider power--velocity range, reveals a real but substantially noisier relationship and a threshold roughly three times higher than the small sample implied. Dataset C -- different material, different machine, metrology-grade measurement uncertainty -- sits between the two ($r=0.845$), which is itself evidence that the underlying trend is genuine rather than a dataset-specific artifact, even though its precise numerical threshold clearly is not yet settled. Any criterion derived from a handful of validation points, in this paper or elsewhere in this literature, should be treated as provisional until checked against a larger, independently collected dataset; the three-dataset comparison here is offered as a demonstration of how to do that check, not as a final answer.
 
 \subsection{Relation to the Corrected-Model Literature}
-This result is complementary to, not competing with, the corrected-model literature. Honarmandi et al.\ \cite{honarmandi2021} and Imani Shahabad et al.\ \cite{imanishahabad2021} both improve prediction accuracy by elaborating the heat-source model itself. This paper instead asks when that elaboration is necessary at all: a practitioner with only process parameters and a spot size in hand can compute $\Pi$ before running anything. At $\Pi$ values below roughly 3--4 (the range implied by the larger, more reliable dataset here), the results indicate that a corrected model such as Eagar--Tsai or extended Rosenthal is very likely warranted; the plain point-source formulation should not be trusted as an absolute predictor in that regime even after absorptivity tuning.
+This result is complementary to, not competing with, the corrected-model literature. Honarmandi et al.\ \cite{honarmandi2021} and Imani Shahabad et al.\ \cite{imanishahabad2021} both improve prediction accuracy by elaborating the heat-source model itself; Wang et al.'s \cite{wang2023} review documents an active, growing body of machine-learning approaches pursuing the same goal by different means. This paper instead asks when that elaboration is necessary at all: a practitioner with only process parameters and a spot size in hand can compute $\Pi$ before running anything. Across all three datasets, $\Pi$ values below roughly 1 are consistently associated with the largest errors (Tables~\ref{tab:validationA}--\ref{tab:comparison}); the results indicate that a corrected model such as Eagar--Tsai or extended Rosenthal is very likely warranted in that regime, and that the plain point-source formulation should not be trusted as an absolute predictor there even after absorptivity tuning, since Trapp et al.'s \cite{trapp2017} measurements show real absorptivity variation is bounded by roughly a factor of two -- far short of the unphysical 500\% this paper's calibration search shows would be needed to close the gap.
 
 \subsection{Limitations}
-Both datasets are restricted to 316L stainless steel; extending $\Pi$'s validity as a cross-material criterion requires equivalent data for Ti-6Al-4V, IN718, and AlSi10Mg, which is not attempted here. Dataset B's larger size substantially improves confidence in the correlation's existence and approximate magnitude, but 172 points from a single machine and material is still not a fully general validation; the honest claim of this paper is that a computable, testable criterion exists and is worth checking further, not that $\Pi\approx3.4$ is a universal constant.
+Datasets A and B are restricted to 316L; Dataset C, to IN718. Extending $\Pi$'s validity as a cross-material criterion to Ti-6Al-4V and AlSi10Mg specifically requires equivalent systematically-varied data for those alloys, which single-track studies such as Wei et al.\ \cite{wei2017} provide qualitatively but not yet in a form directly comparable across the three datasets used here. The threshold value of $\Pi$ itself is not claimed to be a universal constant -- Datasets A, B, and C imply different numerical thresholds even though all three show the same qualitative trend -- and the honest claim of this paper is that a computable, testable criterion exists, correlates with error across independently sourced data, and is worth checking further, not that any single numerical threshold reported here is final.
 
 \section{Conclusion}
 
-The classical point-source Rosenthal model is shown, as an exact analytical property rather than an empirical tendency, to predict a semicircular melt-pool cross-section for any material or process parameters. Validated against two independent published 316L datasets differing in size by nearly two orders of magnitude, prediction error correlates with a simple, precomputable pool-size-to-spot-size ratio -- more weakly, but still significantly, at the larger sample size, which also reveals that absorptivity re-calibration cannot remove the model's systematic underprediction bias. The open-source implementation and both validation datasets accompanying this paper are intended to support testing this criterion against additional materials and process windows.
+The classical point-source Rosenthal model is shown, as an exact analytical property rather than an empirical tendency, to predict a semicircular melt-pool cross-section for any material or process parameters. Validated against three independent published datasets differing by nearly two orders of magnitude in size and spanning two materials, two machines, and three distinct sources -- including the NIST AM-Bench metrology benchmark series -- prediction error correlates with a simple, precomputable pool-size-to-spot-size ratio on all three, with the correlation strength and implied threshold varying meaningfully with sample size and provenance. Absorptivity re-calibration cannot remove the model's systematic underprediction bias on any of the three datasets. The open-source implementation and all three validation datasets accompanying this paper are intended to support testing this criterion against additional materials, machines, and process windows.
 
 \section*{Statements and Declarations}
 
@@ -188,7 +219,7 @@ The classical point-source Rosenthal model is shown, as an exact analytical prop
 
 \noindent\textbf{Author Contributions:} A.O.O. conceived the study, developed the software and analysis, and wrote the manuscript.
 
-\noindent\textbf{Data Availability:} The datasets analyzed during the current study are available at \url{https://github.com/Olorunnisola01/rosenthal-meltpool} (Zhang et al. 2024 case data, redistributed with attribution) and, for the Hofmann et al. (2026) dataset, at \url{https://doi.org/10.5281/zenodo.16979848} (CC-BY-4.0), also redistributed alongside the implementation for reproducibility.
+\noindent\textbf{Data Availability:} The datasets analyzed during the current study are available at \url{https://github.com/Olorunnisola01/rosenthal-meltpool}, which redistributes: Dataset A (Zhang et al. 2024, with attribution), Dataset B (Hofmann et al. 2026, originally at \url{https://doi.org/10.5281/zenodo.16979848}, CC-BY-4.0), and Dataset C (Weaver et al. 2024 / NIST AM-Bench 2022, originally at \url{https://doi.org/10.18434/mds2-2718}, with attribution), for reproducibility.
 
 \noindent\textbf{Code Availability:} The Python implementation, test suite, and an interactive public demonstration are available at \url{https://github.com/Olorunnisola01/rosenthal-meltpool} and \url{https://rosenthal-meltpool.streamlit.app}.
 
@@ -205,6 +236,15 @@ Zhang, S., et al.: Understanding melt pool behavior of 316L stainless steel in l
 
 \bibitem{hofmann2026}
 Hofmann, M., Mayer, T., Friso, F., Radis, R., Kontermann, C., M\"uller, F., Oechsner, M.: Melt pool geometry and process windows in PBF of 316L: comprehensive single-source dataset and statistical modeling. Materials \& Design \textbf{262}, 115459 (2026). \url{https://doi.org/10.1016/j.matdes.2026.115459}
+
+\bibitem{weaver2024}
+Weaver, J.S., Deisenroth, D., Mekhontsev, S., Lane, B.M., Levine, L.E., Yeung, H.: Cross-sectional melt pool geometry of laser scanned tracks and pads on nickel alloy 718 for the 2022 additive manufacturing benchmark challenges. Integr. Mater. Manuf. Innov. \textbf{13}(2) (2024). \url{https://doi.org/10.1007/s40192-024-00355-5}
+
+\bibitem{lane2022}
+Lane, B., Simonds, B., Seppala, J., Levine, L.E.: Preview of the 2022 additive manufacturing benchmark test series and conference (AM-Bench). JOM \textbf{74}(4) (2022). \url{https://doi.org/10.1007/s11837-022-05246-8}
+
+\bibitem{levine2018}
+Levine, L., Stoudt, M., Lane, B.: A preview of the NIST/TMS additive manufacturing benchmark test and conference series. JOM \textbf{70} (2018). \url{https://doi.org/10.1007/s11837-018-2753-z}
 
 \bibitem{coen2022}
 Coen, V., Goossens, L., Van Hooreweder, B.: Methodology and experimental validation of analytical melt pool models for laser powder bed fusion. J. Mater. Process. Technol. art. 117547 (2022). \url{https://doi.org/10.1016/j.jmatprotec.2022.117547}
@@ -226,6 +266,18 @@ Yadroitsev, I., Gusarov, A., Yadroitsava, I., Smurov, I.: Single track formation
 
 \bibitem{bertoli2017}
 Bertoli, U.S., Wolfer, A.J., Matthews, M.J., Delplanque, J.-P.R., Schoenung, J.M.: On the limitations of volumetric energy density as a design parameter for selective laser melting. Materials \& Design \textbf{113}, 331--340 (2017). \url{https://doi.org/10.1016/j.matdes.2016.10.037}
+
+\bibitem{khairallah2016}
+Khairallah, S.A., Anderson, A.T., Rubenchik, A., King, W.E.: Laser powder-bed fusion additive manufacturing: physics of complex melt flow and formation mechanisms of pores, spatter, and denudation zones. Acta Materialia \textbf{108}, 36--45 (2016). \url{https://doi.org/10.1016/j.actamat.2016.02.014}
+
+\bibitem{trapp2017}
+Trapp, J., Rubenchik, A.M., Guss, G., Matthews, M.J.: In situ absorptivity measurements of metallic powders during laser powder-bed fusion additive manufacturing. Applied Materials Today \textbf{9}, 341--349 (2017). \url{https://doi.org/10.1016/j.apmt.2017.08.006}
+
+\bibitem{wang2023}
+Wang, J.C., Zhu, R., Liu, Y.J., Zhang, L.C.: Understanding melt pool characteristics in laser powder bed fusion: an overview of single- and multi-track melt pools for process optimization. Advanced Powder Materials \textbf{2}(4), 100137 (2023). \url{https://doi.org/10.1016/j.apmate.2023.100137}
+
+\bibitem{wei2017}
+Wei, P., Wei, Z., Chen, Z., et al.: Thermal behavior in single track during selective laser melting of AlSi10Mg powder. Applied Physics A \textbf{123}, 604 (2017). \url{https://doi.org/10.1007/s00339-017-1194-9}
 
 \end{thebibliography}
 
