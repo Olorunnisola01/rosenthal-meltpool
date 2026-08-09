@@ -1,0 +1,295 @@
+======================================================================
+PHYSICS-INFORMED SURROGATE MODEL -- VALIDATION REPORT
+======================================================================
+Unified cases: 318
+Materials: ['316L', 'AlSi10Mg', 'IN718', 'Ti-6Al-4V']
+
+--- 0. ABSORPTIVITY CALIBRATION (literature-bounded grid search on Rosenthal baseline) ---
+  316L: absorptivity=0.700 (bounds [0.3, 0.7]), combined width+depth RMSE=7.758e-05 m, n=172  [AT SEARCH BOUNDARY -- baseline cannot fit within literature range; see note below]
+  AlSi10Mg: absorptivity=0.400 (bounds [0.08, 0.4]), combined width+depth RMSE=1.040e-04 m, n=20  [AT SEARCH BOUNDARY -- baseline cannot fit within literature range; see note below]
+  IN718: absorptivity=0.650 (bounds [0.25, 0.65]), combined width+depth RMSE=1.015e-04 m, n=63  [AT SEARCH BOUNDARY -- baseline cannot fit within literature range; see note below]
+  Ti-6Al-4V: absorptivity=0.253 (bounds [0.22, 0.55]), combined width+depth RMSE=4.203e-05 m, n=63
+
+  NOTE: for alloys whose optimum sits at the literature search boundary, this indicates the Rosenthal baseline's structural depth=width/2 constraint (a semicircular cross-section forced by the point-source-at-surface geometry, see rosenthal/model.py docstring) is the dominant source of baseline error, not absorptivity -- no physically bounded absorptivity value can make a fixed-aspect-ratio baseline match real conduction-mode (wide, shallow) or keyhole-mode (narrow, deep) pools simultaneously in width and depth. Absorptivity calibration below is still applied (it is a genuine, if partial, improvement over an arbitrary flat 0.5), but does not resolve this structural limitation.
+
+--- 1. PAIRWISE CROSS-ALLOY TRANSFER (train on alloy X, test on alloy Y) ---
+  (Replaces an earlier 'leave-one-alloy-out' version of this diagnostic that
+   silently trained on only one of the remaining alloys when >2 alloys were
+   present -- see cross_alloy_transfer_matrix() docstring in this script.)
+
+Train: 316L  ->  Test: AlSi10Mg
+  N = 20
+  Width:
+  R^2  = 0.2822  (95% CI [-0.012, 0.386])
+  RMSE = 1.371e-04 m  (95% CI [1.001e-04, 1.693e-04])
+  MAE  = 1.106e-04 m
+  N    = 20
+  Depth:
+  R^2  = 0.1943  (95% CI [-2.348, 0.479])
+  RMSE = 1.266e-04 m  (95% CI [7.459e-05, 1.691e-04])
+  MAE  = 8.766e-05 m
+  N    = 20
+
+Train: 316L  ->  Test: IN718
+  N = 63
+  Width:
+  R^2  = 0.7310  (95% CI [0.597, 0.813])
+  RMSE = 1.191e-05 m  (95% CI [9.874e-06, 1.380e-05])
+  MAE  = 9.383e-06 m
+  N    = 63
+  Depth:
+  R^2  = -3.2901  (95% CI [-5.067, -2.238])
+  RMSE = 7.009e-05 m  (95% CI [6.570e-05, 7.439e-05])
+  MAE  = 6.776e-05 m
+  N    = 63
+
+Train: 316L  ->  Test: Ti-6Al-4V
+  N = 63
+  Width:
+  R^2  = -1.6295  (95% CI [-5.785, 0.275])
+  RMSE = 5.376e-05 m  (95% CI [2.943e-05, 8.290e-05])
+  MAE  = 3.256e-05 m
+  N    = 63
+  Depth:
+  R^2  = -69.5557  (95% CI [-163.006, -35.114])
+  RMSE = 2.237e-04 m  (95% CI [1.934e-04, 2.535e-04])
+  MAE  = 1.870e-04 m
+  N    = 63
+
+Train: AlSi10Mg  ->  Test: 316L
+  N = 172
+  Width:
+  R^2  = 0.0468  (95% CI [-0.257, 0.264])
+  RMSE = 5.478e-05 m  (95% CI [4.879e-05, 6.042e-05])
+  MAE  = 4.236e-05 m
+  N    = 172
+  Depth:
+  R^2  = 0.3971  (95% CI [0.186, 0.500])
+  RMSE = 6.197e-05 m  (95% CI [5.494e-05, 7.055e-05])
+  MAE  = 5.463e-05 m
+  N    = 172
+
+Train: AlSi10Mg  ->  Test: IN718
+  N = 63
+  Width:
+  R^2  = -5.7124  (95% CI [-8.121, -4.362])
+  RMSE = 5.950e-05 m  (95% CI [5.659e-05, 6.253e-05])
+  MAE  = 5.835e-05 m
+  N    = 63
+  Depth:
+  R^2  = 0.4794  (95% CI [0.204, 0.676])
+  RMSE = 2.441e-05 m  (95% CI [1.726e-05, 3.241e-05])
+  MAE  = 1.701e-05 m
+  N    = 63
+
+Train: AlSi10Mg  ->  Test: Ti-6Al-4V
+  N = 63
+  Width:
+  R^2  = 0.6573  (95% CI [0.436, 0.768])
+  RMSE = 1.941e-05 m  (95% CI [1.719e-05, 2.155e-05])
+  MAE  = 1.741e-05 m
+  N    = 63
+  Depth:
+  R^2  = -1.2135  (95% CI [-3.827, -0.280])
+  RMSE = 3.963e-05 m  (95% CI [3.789e-05, 4.127e-05])
+  MAE  = 3.850e-05 m
+  N    = 63
+
+Train: IN718  ->  Test: 316L
+  N = 172
+  Width:
+  R^2  = 0.3781  (95% CI [0.148, 0.529])
+  RMSE = 4.425e-05 m  (95% CI [4.009e-05, 4.852e-05])
+  MAE  = 3.550e-05 m
+  N    = 172
+  Depth:
+  R^2  = 0.5531  (95% CI [0.381, 0.671])
+  RMSE = 5.336e-05 m  (95% CI [4.358e-05, 6.480e-05])
+  MAE  = 3.541e-05 m
+  N    = 172
+
+Train: IN718  ->  Test: AlSi10Mg
+  N = 20
+  Width:
+  R^2  = -0.1823  (95% CI [-1.115, 0.130])
+  RMSE = 1.759e-04 m  (95% CI [1.400e-04, 2.099e-04])
+  MAE  = 1.561e-04 m
+  N    = 20
+  Depth:
+  R^2  = 0.5774  (95% CI [-0.959, 0.668])
+  RMSE = 9.170e-05 m  (95% CI [5.862e-05, 1.216e-04])
+  MAE  = 6.994e-05 m
+  N    = 20
+
+Train: IN718  ->  Test: Ti-6Al-4V
+  N = 63
+  Width:
+  R^2  = -15.3229  (95% CI [-27.948, -8.506])
+  RMSE = 1.340e-04 m  (95% CI [1.111e-04, 1.631e-04])
+  MAE  = 1.098e-04 m
+  N    = 63
+  Depth:
+  R^2  = -39.3938  (95% CI [-94.462, -20.305])
+  RMSE = 1.693e-04 m  (95% CI [1.563e-04, 1.825e-04])
+  MAE  = 1.590e-04 m
+  N    = 63
+
+Train: Ti-6Al-4V  ->  Test: 316L
+  N = 172
+  Width:
+  R^2  = -0.0752  (95% CI [-0.462, 0.201])
+  RMSE = 5.818e-05 m  (95% CI [5.189e-05, 6.421e-05])
+  MAE  = 4.445e-05 m
+  N    = 172
+  Depth:
+  R^2  = -0.0980  (95% CI [-0.198, -0.028])
+  RMSE = 8.363e-05 m  (95% CI [6.610e-05, 1.008e-04])
+  MAE  = 5.029e-05 m
+  N    = 172
+
+Train: Ti-6Al-4V  ->  Test: AlSi10Mg
+  N = 20
+  Width:
+  R^2  = -0.0573  (95% CI [-0.693, 0.195])
+  RMSE = 1.664e-04 m  (95% CI [1.181e-04, 2.098e-04])
+  MAE  = 1.332e-04 m
+  N    = 20
+  Depth:
+  R^2  = -0.2292  (95% CI [-0.670, -0.051])
+  RMSE = 1.564e-04 m  (95% CI [5.591e-05, 2.248e-04])
+  MAE  = 8.434e-05 m
+  N    = 20
+
+Train: Ti-6Al-4V  ->  Test: IN718
+  N = 63
+  Width:
+  R^2  = -1.7601  (95% CI [-3.133, -0.959])
+  RMSE = 3.815e-05 m  (95% CI [3.461e-05, 4.155e-05])
+  MAE  = 3.512e-05 m
+  N    = 63
+  Depth:
+  R^2  = -9.1605  (95% CI [-12.984, -6.984])
+  RMSE = 1.079e-04 m  (95% CI [1.005e-04, 1.149e-04])
+  MAE  = 1.042e-04 m
+  N    = 63
+
+--- 1b. LEAVE-ONE-ALLOY-OUT CROSS-VALIDATION (global surrogate) ---
+
+Held-out alloy: 316L
+  N = 172
+  Width:
+  R^2  = 0.2268  (95% CI [0.004, 0.384])
+  RMSE = 4.934e-05 m  (95% CI [4.409e-05, 5.451e-05])
+  MAE  = 3.819e-05 m
+  N    = 172
+  Depth:
+  R^2  = 0.2739  (95% CI [0.229, 0.313])
+  RMSE = 6.801e-05 m  (95% CI [5.402e-05, 8.250e-05])
+  MAE  = 4.743e-05 m
+  N    = 172
+  Width 95% PI coverage: 0.948 (target 0.95)
+  Depth 95% PI coverage: 0.948 (target 0.95)
+
+Held-out alloy: AlSi10Mg
+  N = 20
+  Width:
+  R^2  = 0.5272  (95% CI [0.010, 0.678])
+  RMSE = 1.112e-04 m  (95% CI [9.058e-05, 1.306e-04])
+  MAE  = 9.781e-05 m
+  N    = 20
+  Depth:
+  R^2  = 0.3055  (95% CI [-3.981, 0.460])
+  RMSE = 1.176e-04 m  (95% CI [9.231e-05, 1.443e-04])
+  MAE  = 1.066e-04 m
+  N    = 20
+  Width 95% PI coverage: 0.950 (target 0.95)
+  Depth 95% PI coverage: 0.950 (target 0.95)
+
+Held-out alloy: IN718
+  N = 63
+  Width:
+  R^2  = -29.2215  (95% CI [-41.150, -22.564])
+  RMSE = 1.263e-04 m  (95% CI [1.245e-04, 1.280e-04])
+  MAE  = 1.261e-04 m
+  N    = 63
+  Depth:
+  R^2  = -1.9967  (95% CI [-2.853, -1.375])
+  RMSE = 5.858e-05 m  (95% CI [4.722e-05, 7.073e-05])
+  MAE  = 4.884e-05 m
+  N    = 63
+  Width 95% PI coverage: 0.937 (target 0.95)
+  Depth 95% PI coverage: 0.937 (target 0.95)
+
+Held-out alloy: Ti-6Al-4V
+  N = 63
+  Width:
+  R^2  = -39.8410  (95% CI [-67.631, -25.773])
+  RMSE = 2.119e-04 m  (95% CI [1.874e-04, 2.381e-04])
+  MAE  = 1.908e-04 m
+  N    = 63
+  Depth:
+  R^2  = -25.8880  (95% CI [-63.891, -12.822])
+  RMSE = 1.381e-04 m  (95% CI [1.188e-04, 1.581e-04])
+  MAE  = 1.183e-04 m
+  N    = 63
+  Width 95% PI coverage: 0.937 (target 0.95)
+  Depth 95% PI coverage: 0.937 (target 0.95)
+
+--- 1c. IN718 SOURCE-COMPOSITION DIAGNOSTIC (experimental vs FE-simulation) ---
+  Source breakdown: {'NIST_AMBench2022': 7, 'Pramod2023': 56}
+  89% of cases labeled 'IN718' in this dataset are FE-simulation
+  (Pramod et al. 2023), not physical measurement. Any 'IN718' metric elsewhere
+  in this report is dominated by simulated, not measured, geometry.
+
+  Sim-to-real transfer test (train on Pramod FE-sim, n=56;
+  test on NIST AM-Bench real measurements, n=7):
+    Width R^2 = -1.599, RMSE = 2.533e-05 m
+    Depth R^2 = -2.262, RMSE = 7.476e-05 m
+  Strongly negative R^2 here means a model trained on the FE-simulation
+  majority of the 'IN718' data does not transfer to real measurements at all --
+  the two IN718 sources are not interchangeable, and pooling them without this
+  check would silently overstate how much of the IN718 result reflects reality.
+
+--- 2. ABLATION STUDY (316L) ---
+  Using calibrated absorptivity=0.700 (was fixed 0.5 previously)
+
+Width ablation:
+  Rosenthal:                R^2=-1.4495 RMSE=7.38e-05 m
+  Black-box GP:             R^2=0.8319 RMSE=1.93e-05 m
+  Physics-Informed:         R^2=0.8919 RMSE=1.55e-05 m
+  Physics-Informed (calibrated): R^2=0.8919 RMSE=1.55e-05 m
+
+Depth ablation:
+  Rosenthal:                R^2=-0.0654 RMSE=5.95e-05 m
+  Black-box GP:             R^2=0.3523 RMSE=4.64e-05 m
+  Physics-Informed:         R^2=0.9348 RMSE=1.47e-05 m
+  Physics-Informed (calibrated): R^2=0.9348 RMSE=1.47e-05 m
+
+--- 3. UNCERTAINTY CALIBRATION (95% PI) ---
+  (a) Raw GP posterior
+  Width:  coverage=0.514 (target 0.95), mean width=1.66e-05 m
+  Depth:  coverage=0.771 (target 0.95), mean width=2.39e-05 m
+  (b) After conformal calibration
+  Width:  coverage=0.971 (target 0.95), mean width=8.66e-05 m
+  Depth:  coverage=0.943 (target 0.95), mean width=6.44e-05 m
+  Calibration factors: width=5.201, depth=2.699
+
+--- 3b. RELIABILITY CURVE (raw GP posterior, physics-informed) ---
+  Nominal level | Width coverage | Depth coverage
+      0.50      |      0.200      |      0.286
+      0.60      |      0.229      |      0.457
+      0.70      |      0.286      |      0.629
+      0.80      |      0.314      |      0.743
+      0.90      |      0.457      |      0.771
+      0.95      |      0.514      |      0.771
+
+Saved reliability_curve.png
+
+--- 4. SOBOL SENSITIVITY (width, first-order) ---
+  normalized_enthalpy: 0.0041
+  peclet_number: 0.6081
+  linear_energy_density: 0.3795
+  areal_energy_density: 0.0414
+  source_is_experimental: 0.0000
+
+Saved parity_physics_informed.png
