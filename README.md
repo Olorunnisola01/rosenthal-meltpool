@@ -2,7 +2,11 @@
 
 A plain Python implementation of the Rosenthal moving point-heat-source solution,
 used to predict single-track melt-pool width, depth, and length for laser powder
-bed fusion (L-PBF) process parameters.
+bed fusion (L-PBF) process parameters — together with a validated finite-source
+correction (Goldak double-ellipsoidal source) and a physics-informed GP surrogate
+that fixes the point-source model's main structural limitation. See
+[Project 3](#project-3-a-finite-source-correction-that-actually-fixes-the-depth-error)
+below for the headline result, or `docs/paper2_draft.pdf` for the full paper.
 
 Reference: D. Rosenthal, "The theory of moving sources of heat and its application
 to metal treatments," *Trans. ASME*, 68, 849-866 (1946).
@@ -147,10 +151,68 @@ comparisons between process parameters (screening "does A increase melt pool
 size more than B") and for conduction-dominated regimes with pool sizes well
 above the real beam spot size. It is not suitable for absolute dimensional
 prediction validated against experiment, or for any parameter regime near or
-in keyhole mode. A finite-source correction (e.g. a Gaussian surface flux
-instead of a true point, or a Goldak double-ellipsoidal source) is the
-natural next step to close this gap — noted here as a direction for future
-work, not implemented in this package.
+in keyhole mode. **Project 3, below, implements and validates exactly the
+finite-source correction flagged here as future work in an earlier version of
+this README** — that work is no longer future work.
+
+## Project 3: a finite-source correction that actually fixes the depth error
+
+`rosenthal/goldak.py` implements the Goldak et al. (1984) double-ellipsoidal
+moving heat source — the direct, established-method fix for Project 2's
+depth/width ≡ 0.5 structural limitation, since Goldak's width and depth are
+governed by independent shape parameters rather than forced to a fixed ratio.
+It uses the exact closed-form quasi-steady solution of Fachinotti & Cardona
+(2008/2011), validated against the Rosenthal point-source limit to <0.1%
+agreement, with a vectorized batch evaluator (`temperature_batch`) making
+real nonlinear calibration computationally tractable.
+
+`rosenthal/physics_informed.py` wraps either baseline (Rosenthal or Goldak)
+with a residual Gaussian Process surrogate trained on real published
+single-track data across four L-PBF alloys (316L, IN718, AlSi10Mg,
+Ti-6Al-4V), with physics-constrained predictions, 95% uncertainty intervals,
+conformal calibration, and a **mode-aware predictor** that classifies
+conduction vs. keyhole mode from process parameters alone (a calibrated
+normalized-enthalpy threshold, per King et al. 2014), then applies
+mode-specific Goldak shape parameters — no oracle/measured geometry used at
+prediction time.
+
+Run `python scripts/train_physics_informed.py` for the full training,
+leave-one-alloy-out cross-validation, ablation study, and Sobol sensitivity
+analysis; `python scripts/benchmark_goldak_vs_rosenthal.py --kfold` for the
+disjoint-fold cross-validated Goldak-vs-Rosenthal comparison.
+
+**Headline result** (see `docs/paper2_draft.pdf` for the full paper): on
+316L — 172 cases, single source, the largest and most systematically-varied
+real dataset in this project, spanning both conduction and keyhole modes —
+under proper cross-validation with no calibration/evaluation overlap, the
+mode-aware Goldak predictor improves depth R² from Rosenthal's **+0.053 to
++0.642**, at 95% mode-classification accuracy, confirming that the semicircle
+identity documented in Project 2, not absorptivity, is the actual mechanism
+behind Rosenthal's depth error.
+
+This result is established as the paper's **primary claim on 316L**, then
+tested as an explicit generalization check on three additional alloys, with
+the outcome reported precisely rather than averaged into one number: it
+replicates cleanly on IN718's real (non-simulation) data (depth R²:
+-0.546 → +0.352 for the global fit; +0.181 for the mode-aware predictor on
+real cases), does not replicate for AlSi10Mg once train/test leakage in the
+original benchmark script was found and corrected, and replicates for
+Ti-6Al-4V only after removing previously-undetected FE-simulation
+contamination from that alloy's dataset (16 genuinely real cases, depth R²
+-0.200 → +0.185). See `TODO.md` for the full 20-round audit trail, including
+the leakage bug found and fixed in that process — a documented example of
+why disjoint train/test evaluation matters, not just an assumed best
+practice.
+
+**Known open limitations, stated plainly rather than hidden:** width
+accuracy trades off against the depth improvement under every Goldak
+calibration strategy tested (a genuine, still-unresolved multi-objective
+calibration question); AlSi10Mg's mode classifier performs near chance
+(45% accuracy) even though the underlying correction works when the true
+mode is known; and two literature datasets (IN718, AlSi10Mg) are confirmed
+at the ceiling of currently-accessible public sources, not an unexplored
+gap. Full detail in `docs/paper2_draft.tex`'s Declared Scope Limitations
+section.
 
 ## Tests
 
